@@ -13,7 +13,7 @@ This plugin adds an entry to your /etc/hosts file on the host system.
 On **up**, **resume** and **reload** commands, it tries to add the information, if its not already existant in your hosts file. If it needs to be added, you will be asked for an administrator password, since it uses sudo to edit the file.
 
 On **halt**, **destroy**, and **suspend**, those entries will be removed again.
-By setting the `config.hostsupdater.remove_on_suspend  = false`, **suspend** and **halt** will not remove them. 
+By setting the `config.virtualhostsupdater.remove_on_suspend  = false`, **suspend** and **halt** will not remove them. 
 
 
 ## Installation
@@ -34,7 +34,7 @@ You currently only need the `hostname` and a `:private_network` network with a f
 
     config.vm.network :private_network, ip: "192.168.3.10"
     config.vm.hostname = "www.testing.de"
-    config.hostsupdater.aliases = ["alias.testing.de", "alias2.somedomain.com"]
+    config.virtualhostsupdater.aliases = ["alias.testing.de", "alias2.somedomain.com"]
 
 This IP address and the hostname will be used for the entry in the `/etc/hosts` file.
 
@@ -47,7 +47,7 @@ If you have multiple network adapters i.e.:
 
 you can specify which hostnames are bound to which IP by passing a hash mapping the IP of the network to an array of hostnames to create, e.g.:
 
-    config.hostsupdater.aliases = {
+    config.virtualhostsupdater.aliases = {
         '10.0.0.1' => ['foo.com', 'bar.com'],
         '10.0.0.2' => ['baz.com', 'bat.com']
     }
@@ -77,7 +77,7 @@ Example:
 
 To keep your /etc/hosts file unchanged simply add the line below to your `VagrantFile`:
 
-    config.hostsupdater.remove_on_suspend = false
+    config.virtualhostsupdater.remove_on_suspend = false
     
 This disables vagrant-hostsupdater from running on **suspend** and **halt**.
         
@@ -116,6 +116,9 @@ vagrant plugin install vagrant-hostsupdater-*.gem
 
 
 ## Versions
+
+### 1.2.0
+* Have multiple private network support working cross-platform
 
 ### 1.0.2
 * Feature: Added `remove_on_suspend` for `vagrant_halt` [#71](/../../issues/71)

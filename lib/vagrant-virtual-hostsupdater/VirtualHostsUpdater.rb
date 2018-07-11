@@ -1,44 +1,18 @@
 module VagrantPlugins
-  module HostsUpdater
-    module HostsUpdater
+  module VirtualHostsUpdater
+    module VirtualHostsUpdater
       @@hosts_path = Vagrant::Util::Platform.windows? ? File.expand_path('system32/drivers/etc/hosts', ENV['windir']) : '/etc/hosts'
 
-      def getIps
-        ips = []
-        @machine.config.vm.networks.each do |network|
-          key, options = network[0], network[1]
-          ip = options[:ip] if (key == :private_network || key == :public_network) && options[:hostsupdater] != "skip"
-          ips.push(ip) if ip
-          if options[:hostsupdater] == 'skip'
-            @ui.info '[vagrant-hostsupdater] Skipping adding host entries (config.vm.network hostsupdater: "skip" is set)'
-          end
-        end
-        return ips
-      end
-
       # Get a hash of hostnames indexed by ip, e.g. { 'ip1': ['host1'], 'ip2': ['host2', 'host3'] }
-      def getHostnames(ips)
+      def getHostnames()
+        @ui.info '[vagrant-virtual-hostsupdater] retrieving the hostnames'
         hostnames = Hash.new { |h, k| h[k] = [] }
 
-        case @machine.config.hostsupdater.aliases
-        when Array
-          # simple list of aliases to link to all ips
-          ips.each do |ip|
-            hostnames[ip] += @machine.config.hostsupdater.aliases
-          end
+        case @machine.config.virtualhostsupdater.aliases
         when Hash
           # complex definition of aliases for various ips
-          @machine.config.hostsupdater.aliases.each do |ip, hosts|
+          @machine.config.virtualhostsupdater.aliases.each do |ip, hosts|
             hostnames[ip] += Array(hosts)
-          end
-        end
-
-        # handle default hostname(s) if not already specified in the aliases
-        Array(@machine.config.vm.hostname).each do |host|
-          if hostnames.none? { |k, v| v.include?(host) }
-            ips.each do |ip|
-              hostnames[ip].unshift host
-            end
           end
         end
 
@@ -46,19 +20,18 @@ module VagrantPlugins
       end
 
       def addHostEntries
-        ips = getIps
-        hostnames = getHostnames(ips)
+        hostnames = getHostnames()
         file = File.open(@@hosts_path, "rb")
         hostsContents = file.read
         uuid = @machine.id
         name = @machine.name
         entries = []
-        ips.each do |ip|
-          hostnames[ip].each do |hostname|
+        hostnames.each do |ip, hosts|
+          hosts.each do |hostname|
             entryPattern = hostEntryPattern(ip, hostname)
 
             if hostsContents.match(/#{entryPattern}/)
-              @ui.info "[vagrant-hostsupdater]   found entry for: #{ip} #{hostname}"
+              @ui.info "[vagrant-virtual-hostsupdater]   found entry for: #{ip} #{hostname}"
             else
               hostEntry = createHostEntry(ip, hostname, name, uuid)
               entries.push(hostEntry)
@@ -69,17 +42,17 @@ module VagrantPlugins
       end
 
       def cacheHostEntries
-        @machine.config.hostsupdater.id = @machine.id
+        @machine.config.virtualhostsupdater.id = @machine.id
       end
 
       def removeHostEntries
-        if !@machine.id and !@machine.config.hostsupdater.id
-          @ui.info "[vagrant-hostsupdater] No machine id, nothing removed from #@@hosts_path"
+        if !@machine.id and !@machine.config.virtualhostsupdater.id
+          @ui.info "[vagrant-virtual-hostsupdater] No machine id, nothing removed from #@@hosts_path"
           return
         end
         file = File.open(@@hosts_path, "rb")
         hostsContents = file.read
-        uuid = @machine.id || @machine.config.hostsupdater.id
+        uuid = @machine.id || @machine.config.virtualhostsupdater.id
         hashedId = Digest::MD5.hexdigest(uuid)
         if hostsContents.match(/#{hashedId}/)
             removeFromHosts
@@ -105,13 +78,13 @@ module VagrantPlugins
         return if entries.length == 0
         content = entries.join("\n").strip
 
-        @ui.info "[vagrant-hostsupdater] Writing the following entries to (#@@hosts_path)"
-        @ui.info "[vagrant-hostsupdater]   " + entries.join("\n[vagrant-hostsupdater]   ")
-        @ui.info "[vagrant-hostsupdater] This operation requires administrative access. You may " +
+        @ui.info "[vagrant-virtual-hostsupdater] Writing the following entries to (#@@hosts_path)"
+        @ui.info "[vagrant-virtual-hostsupdater]   " + entries.join("\n[vagrant-virtual-hostsupdater]   ")
+        @ui.info "[vagrant-virtual-hostsupdater] This operation requires administrative access. You may " +
           "skip it by manually adding equivalent entries to the hosts file."
         if !File.writable_real?(@@hosts_path)
           if !sudo(%Q(sh -c 'echo "#{content}" >> #@@hosts_path'))
-            @ui.error "[vagrant-hostsupdater] Failed to add hosts, could not use sudo"
+            @ui.error "[vagrant-virtual-hostsupdater] Failed to add hosts, could not use sudo"
             adviseOnSudo
           end
         else
@@ -123,11 +96,11 @@ module VagrantPlugins
       end
 
       def removeFromHosts(options = {})
-        uuid = @machine.id || @machine.config.hostsupdater.id
+        uuid = @machine.id || @machine.config.virtualhostsupdater.id
         hashedId = Digest::MD5.hexdigest(uuid)
         if !File.writable_real?(@@hosts_path)
           if !sudo(%Q(sed -i -e '/#{hashedId}/ d' #@@hosts_path))
-            @ui.error "[vagrant-hostsupdater] Failed to remove hosts, could not use sudo"
+            @ui.error "[vagrant-virtual-hostsupdater] Failed to remove hosts, could not use sudo"
             adviseOnSudo
           end
         else
@@ -158,8 +131,8 @@ module VagrantPlugins
       end
 
       def adviseOnSudo
-        @ui.error "[vagrant-hostsupdater] Consider adding the following to your sudoers file:"
-        @ui.error "[vagrant-hostsupdater]   https://github.com/cogitatio/vagrant-hostsupdater#passwordless-sudo"
+        @ui.error "[vagrant-virtual-hostsupdater] Consider adding the following to your sudoers file:"
+        @ui.error "[vagrant-virtual-hostsupdater]   https://github.com/gokhansengun/vagrant-virtual-hostsupdater#passwordless-sudo"
       end
     end
   end

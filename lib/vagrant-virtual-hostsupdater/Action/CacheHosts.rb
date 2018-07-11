@@ -1,8 +1,8 @@
 module VagrantPlugins
-  module HostsUpdater
+  module VirtualHostsUpdater
     module Action
       class CacheHosts
-        include HostsUpdater
+        include VirtualHostsUpdater
 
         def initialize(app, env)
           @app = app
