@@ -160,6 +160,9 @@ vagrant plugin install vagrant-hostsupdater-*.gem
 
 ## Versions
 
+### 1.1.2
+TODO: gseng
+
 ### 1.1.1
 * Bugfix: AWS Feature broke part of the code [#155](/../../issues/155)
 
